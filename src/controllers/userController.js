@@ -6,6 +6,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const sendMail = require("../middleware/sendMail");
 const dotenv = require("dotenv");
+const Logs = require("../database/models/Logs");
 dotenv.config();
 
 // Function to hash a password using bcrypt
@@ -54,7 +55,7 @@ exports.login = async (req, res) => {
             return res.status(400).json({ error: "Invalid credentials" });
         }
         const payload = { user: { id: user.id } };
-        jwt.sign(payload, process.env.JWT_SECRET,  (err, token) => {
+        jwt.sign(payload, process.env.JWT_SECRET, (err, token) => {
             if (err) throw err;
             res.json({ token, user });
         });
@@ -151,8 +152,8 @@ exports.forgetPassword = async (req, res) => {
         }
         // const resetToken = crypto.randomBytes(20).toString('hex');
         const randomBytes = crypto.randomBytes(3);
-        const code = parseInt(randomBytes.toString('hex'),16) %1000000;
-        const sixDigitCode = code.toString().padStart(6,0);
+        const code = parseInt(randomBytes.toString('hex'), 16) % 1000000;
+        const sixDigitCode = code.toString().padStart(6, 0);
         user.resetPasswordCode = sixDigitCode;
         user.resetPasswordExpire = Date.now() + 3600000; // Token expires in one hour
         await user.save();
@@ -208,16 +209,67 @@ exports.delete = async (req, res) => {
 };
 
 
-//Endpoint to get Desire by userId
+// Endpoint to get Desire by userId
 exports.userDesire = async (req, res) => {
     try {
         const userId = req.params._id;
         if (!validateObjectId(userId, res)) return;
-        const userDesire = await Desire.find({ userId: userId });
-        if (!validateObjectId(userId, res)) return;
-        res.status(200).json(userDesire);
+
+        // Fetch all desires for the specified user
+        const userDesires = await Desire.find({ userId: userId });
+
+        // Create an array to store response data for each desire
+        const responseArray = [];
+
+        // Loop through each desire
+        for (const userDesire of userDesires) {
+            // Fetch logs for the specified desire and sort them by lastRunDate in ascending order
+            const logs = await Logs.find({ desireId: userDesire._id }).sort({ lastRunDate: 1 }).exec();
+
+            // Calculate streak
+            let streak = 0;
+            for (let i = logs.length - 1; i > 0; i--) {
+                const currentDate = new Date(logs[i].lastRunDate);
+                const prevDate = new Date(logs[i - 1].lastRunDate);
+
+                // Set hours, minutes, seconds, and milliseconds to 0 for accurate date comparison
+                currentDate.setHours(0, 0, 0, 0);
+                prevDate.setHours(0, 0, 0, 0);
+
+                const diffTime = currentDate - prevDate;
+                const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+                if (diffDays === 1) {
+                    streak++;
+                } else if (diffDays > 1) {
+                    break; // Streak is broken
+                }
+            }
+
+            // Check if the streak includes the current date
+            const lastLogDateStr = logs.length > 0 ? new Date(logs[logs.length - 1].lastRunDate).toISOString().split('T')[0] : null;
+            const today = new Date();
+            if (lastLogDateStr === today.toISOString().split('T')[0]) {
+                streak++;
+            }
+
+            const respData = {
+                _id: userDesire._id,
+                title: userDesire.title,
+                userId: userDesire.userId,
+                Count: logs.reduce((acc, log) => acc + log.runCount, 0),
+                streak: streak,
+                createdAt: userDesire.createdAt,
+                updatedAt: userDesire.updatedAt,
+            };
+
+            // Add response data to the array
+            responseArray.push(respData);
+        }
+
+        res.status(200).json(responseArray);
     } catch (error) {
-        console.log("Error While Getting User Desire:", error.message);
-        res.status(500).json({ error: error.message })
+        console.log("Error While fetching desires:", error.message);
+        res.status(500).json({ error: error.message });
     }
-}
+};
