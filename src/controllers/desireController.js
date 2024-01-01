@@ -99,7 +99,7 @@ exports.getAllDesires = async (req, res) => {
 
 
 // Get Desire with desire Id
-const newLocal = exports.getDesireById = async (req, res) => {
+exports.getDesireById = async (req, res) => {
     try {
         const desireId = req.params._id;
         if (!validateObjectId(desireId, res)) return;
@@ -110,25 +110,25 @@ const newLocal = exports.getDesireById = async (req, res) => {
         }
         // Fetch logs for the specified desire and sort them by lastRunDate in ascending order
         const logs = await Logs.find({ desireId }).sort({ lastRunDate: 1 }).exec();
-        
+
+        // Calculate streak
         let streak = 0;
         for (let i = logs.length - 1; i > 0; i--) {
             let currentDate = new Date(); // Current date
 
             // Simulate going back to the previous date for each iteration
             currentDate.setDate(currentDate.getDate() - (logs.length - 1 - i));
+
             const prevDate = new Date(logs[i - 1].lastRunDate);
 
             // Set hours, minutes, seconds, and milliseconds to 0 for accurate date comparison
-            currentDate.setHours(0, 0, 0, 0);
-            prevDate.setHours(0, 0, 0, 0);
+            const currentDayStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 0, 0, 0, 0);
+            const prevDayStart = new Date(prevDate.getFullYear(), prevDate.getMonth(), prevDate.getDate(), 0, 0, 0, 0);
 
-            const diffTime = currentDate - prevDate;
-            const diffDays = diffTime / (1000 * 60 * 60 * 24);
-
-            if (diffDays === 1) {
+            // Compare the dates directly
+            if (currentDayStart.getTime() === prevDayStart.getTime()) {
                 streak++;
-            } else if (diffDays > 1) {
+            } else {
                 break; // Streak is broken
             }
 
@@ -158,7 +158,6 @@ const newLocal = exports.getDesireById = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
-
 
 // Update Desire By Id
 exports.update = async (req, res) => {
@@ -195,17 +194,17 @@ exports.delete = async (req, res) => {
 };
 
 
-exports.runLogs = async(req, res) => {
+exports.runLogs = async (req, res) => {
     try {
         const { desireId, userId } = req.body;
-            // If the log entry doesn't exist, create a new one
-            const newLog = await Logs.create({
-                desireId: desireId,
-                userId: userId,
-                streak: new Date(),
-                lastRunDate: new Date(),
-                runCount: 1,
-            });
+        // If the log entry doesn't exist, create a new one
+        const newLog = await Logs.create({
+            desireId: desireId,
+            userId: userId,
+            streak: new Date(),
+            lastRunDate: new Date(),
+            runCount: 1,
+        });
 
         res.status(200).json({ Message: "Desire Run Successfully." });
     } catch (error) {
