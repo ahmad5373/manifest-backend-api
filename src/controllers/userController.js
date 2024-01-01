@@ -229,23 +229,27 @@ exports.userDesire = async (req, res) => {
             // Calculate streak
             let streak = 0;
             for (let i = logs.length - 1; i > 0; i--) {
-                const currentDate = new Date(logs[i].lastRunDate);
+                let currentDate = new Date(); // Current date
+    
+                // Simulate going back to the previous date for each iteration
+                currentDate.setDate(currentDate.getDate() - (logs.length - 1 - i));
                 const prevDate = new Date(logs[i - 1].lastRunDate);
-
+    
                 // Set hours, minutes, seconds, and milliseconds to 0 for accurate date comparison
                 currentDate.setHours(0, 0, 0, 0);
                 prevDate.setHours(0, 0, 0, 0);
-
+    
                 const diffTime = currentDate - prevDate;
                 const diffDays = diffTime / (1000 * 60 * 60 * 24);
-
+    
                 if (diffDays === 1) {
                     streak++;
                 } else if (diffDays > 1) {
                     break; // Streak is broken
                 }
+                currentDate.setDate(currentDate.getDate() - 1);
             }
-
+            
             // Check if the streak includes the current date
             const lastLogDateStr = logs.length > 0 ? new Date(logs[logs.length - 1].lastRunDate).toISOString().split('T')[0] : null;
             const today = new Date();

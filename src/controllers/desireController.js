@@ -99,7 +99,7 @@ exports.getAllDesires = async (req, res) => {
 
 
 // Get Desire with desire Id
-exports.getDesireById = async (req, res) => {
+const newLocal = exports.getDesireById = async (req, res) => {
     try {
         const desireId = req.params._id;
         if (!validateObjectId(desireId, res)) return;
@@ -110,14 +110,14 @@ exports.getDesireById = async (req, res) => {
         }
         // Fetch logs for the specified desire and sort them by lastRunDate in ascending order
         const logs = await Logs.find({ desireId }).sort({ lastRunDate: 1 }).exec();
-
         
-        // Calculate streak
         let streak = 0;
         for (let i = logs.length - 1; i > 0; i--) {
-            const currentDate = new Date();
-            const prevDate = new Date(logs[i - 1].lastRunDate);
+            let currentDate = new Date(); // Current date
 
+            // Simulate going back to the previous date for each iteration
+            currentDate.setDate(currentDate.getDate() - (logs.length - 1 - i));
+            const prevDate = new Date(logs[i - 1].lastRunDate);
 
             // Set hours, minutes, seconds, and milliseconds to 0 for accurate date comparison
             currentDate.setHours(0, 0, 0, 0);
@@ -131,7 +131,10 @@ exports.getDesireById = async (req, res) => {
             } else if (diffDays > 1) {
                 break; // Streak is broken
             }
+
+            currentDate.setDate(currentDate.getDate() - 1);
         }
+
 
         // Check if the streak includes the current date
         const lastLogDateStr = logs.length > 0 ? new Date(logs[logs.length - 1].lastRunDate).toISOString().split('T')[0] : null;
