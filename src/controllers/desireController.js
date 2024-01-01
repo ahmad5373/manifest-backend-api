@@ -111,11 +111,13 @@ exports.getDesireById = async (req, res) => {
         // Fetch logs for the specified desire and sort them by lastRunDate in ascending order
         const logs = await Logs.find({ desireId }).sort({ lastRunDate: 1 }).exec();
 
+        
         // Calculate streak
         let streak = 0;
         for (let i = logs.length - 1; i > 0; i--) {
-            const currentDate = new Date(logs[i].lastRunDate);
+            const currentDate = new Date();
             const prevDate = new Date(logs[i - 1].lastRunDate);
+
 
             // Set hours, minutes, seconds, and milliseconds to 0 for accurate date comparison
             currentDate.setHours(0, 0, 0, 0);
